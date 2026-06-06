@@ -1,0 +1,7 @@
+interface:
+  display_name: "Image PPT To Editable PPT"
+  short_description: "Convert image-based slide decks into editable PPTX files."
+  brand_color: "#F0440D"
+  default_prompt: "Use $image-ppt-to-editable-ppt to convert this image-only PPT into an editable deck while preserving source visuals."
+policy:
+  allow_implicit_invocation: true
