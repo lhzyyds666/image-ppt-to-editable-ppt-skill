@@ -1,4 +1,4 @@
-# Image PPT To Editable PPT Skill
+﻿# Image PPT To Editable PPT Skill
 
 Convert image-only PowerPoint decks, HTML slide exports, and 4K slide screenshots into editable PPTX files while preserving the original visual system.
 
@@ -21,7 +21,7 @@ This skill is especially useful when a deck is mostly one flattened image per sl
 ## Module Cutout Workflow
 
 ```powershell
-$skill = "C:\Users\User\.agents\skills\image-ppt-to-editable-ppt"
+$skill = "C:\Users\User\.codex\skills\image-ppt-to-editable-ppt"
 
 python "$skill\scripts\module_cutouts.py" review `
   --pptx "E:\path\source_image_deck.pptx" `

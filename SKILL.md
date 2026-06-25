@@ -1,6 +1,6 @@
 ---
 name: image-ppt-to-editable-ppt
-description: Convert image-only PPT/HTML slide visuals into editable PowerPoint decks with source-preserving cutouts, editable text overlays, and module-level animation layers. Use when the user asks to turn picture-based PPT pages, slide screenshots, HTML slide images, or generated 4K presentation images into an editable .pptx; when they ask to cut whole cards/small boxes/modules for PowerPoint animation; or when extracted PPT icons/elements are badly cut.
+description: Use when the user asks to convert image-only PPT pages, HTML slide images, screenshots, or generated 4K slide images into an editable .pptx; asks to cut whole cards, boxes, modules, diagrams, icons, or targets into animation-ready PowerPoint layers; or reports that PPT cutouts are missing, misaligned, too fine-grained, or badly cropped.
 ---
 
 # Image PPT To Editable PPT
@@ -12,6 +12,8 @@ Act on the exact deck/image in front of you. Preserve the source visual system a
 When an element is hard to isolate cleanly, keep the whole visual group as one PNG, erase only the embedded text, then add editable text boxes over it.
 
 When the user asks for animation-friendly chunks such as "each small box", "each card", "module", "whole target", or "do not split it so fine", use **module cutout mode**: keep each visual card/group as one opaque source-derived PNG layer and do not decompose its internal icons, text, and borders.
+
+When the user explicitly asks to "整张生成", "重新生成整张图片", use `image-generation`, or make a high-fidelity image deck instead of editable layers, use **whole-slide image-generation mode**: generate one complete 4K PNG per slide and insert each image full-page into a new PPTX. Do not patch-edit on top of the old slide, do not cover old content with overlays, and do not overwrite the source PPTX.
 
 ## Required Skills And Tools
 
@@ -27,40 +29,49 @@ When the user asks for animation-friendly chunks such as "each small box", "each
    - Export or identify one 4K source image per slide, ideally `3840x2160` for 16:9.
    - Save originals and work in a run folder under the project output area.
 
-2. **Build the first editable deck**
+2. **Whole-slide image-generation mode**
+   - Trigger this when the user wants complete regenerated slide images, especially for thesis/report decks where visual polish matters more than internal editability.
+   - If a content deck and a style/template deck are both provided, export both to slide PNGs. Use the content slide as the semantic reference and the closest template slide as the visual-style reference.
+   - Generate each slide as `3840x2160` PNG with `quality high` and opaque background. Put exact titles, Chinese labels, table values, metric numbers, and English tokens in the prompt.
+   - Insert each generated PNG as a full-slide picture in a new PPTX with the same 16:9 page size. Keep a manifest recording source slide, template reference, prompt summary, output PNG, and dimensions.
+   - QA the final PPTX by exporting it through PowerPoint when available, building a contact sheet, and visually checking text-heavy slides.
+
+3. **Build the first editable deck**
    - Use full-slide preview images only as reference, not as final editable content.
    - Add editable text boxes for all user-facing text.
    - Extract visual elements as PNGs with transparent backgrounds.
    - Keep coordinates proportional to the source slide: 4K pixels map to 13.333 x 7.5 in at 288 px/in.
 
-3. **Choose extraction strategy per element**
+4. **Choose extraction strategy per element**
    - **Simple icon / shape:** recut from the 4K source with generous margins, transparentize near-white background, then tighten to the colored/non-background pixels.
    - **Chart / diagram / workflow:** keep as a larger source-derived PNG if splitting would damage lines, gradients, or icons.
    - **Complex group with text:** keep the visual group, erase embedded text with white/transparent patches, then overlay editable text.
    - **Animation module / card:** keep the entire card or small box as one opaque PNG. White-fill the same region on the base slide, then place the module crop back at the exact coordinates as an independent picture layer named `MODULE_Sxx_xx`.
    - **Identity assets:** preserve the user/source-provided asset; do not approximate or redraw.
 
-4. **Module cutout mode**
+5. **Module cutout mode**
    - First auto-detect likely card/module boxes from the full-slide image, but treat this only as a draft.
    - If the user wants control or the boxes are ambiguous, generate a browser red-box calibration page. Let the user drag, resize, add, delete, and save boxes to `adjusted_modules.json`.
+   - The red-box file is valid only for the exact slide images used to create it. If slides were regenerated, trimmed, reordered, replaced, or visually edited, first build/identify a fresh full-image PPT for the current slide set and rerun `module_cutouts.py prepare` or `review` on that PPT. Do not scale or remap an older `adjusted_modules.json` unless the images are pixel-identical except for uniform resolution scaling.
    - Build the final PPTX from `adjusted_modules.json`: one white-filled base layer per slide plus one independent picture layer per module.
    - Do not overwrite the source PPTX. Auto-suffix the output when the requested output path already exists.
    - Keep `adjusted_modules.json` and the review page if they are useful for later edits; delete transient crop assets and exported preview images after QA.
 
-5. **Repair bad cutouts**
+6. **Repair bad cutouts**
    - Use the annotated browser/PPT location to identify the matching slide and shape id.
    - Inspect the current PNG. If an edge, icon head, star point, circle, or leader line is missing, recut from the 4K source with a wider crop.
    - If a cutout leaves text ghosts, erase a larger text region or use opaque white patches on white panels.
    - If a complete icon still looks wrong in PPT, check placement: the object may be touching a card border rather than being missing.
 
-6. **Generate review HTML**
+7. **Generate review HTML**
    - Export every PPT slide to `3840x2160` PNG.
    - Render an HTML review page using each full-slide preview as the background.
    - Overlay transparent hotspots for shapes so the user can annotate bad cutouts without relying on imperfect HTML text layout.
    - Add cache-busting query strings to preview images after every refresh.
 
-7. **Verify before finishing**
+8. **Verify before finishing**
    - View the affected slide export, not only the isolated PNG.
+   - For whole-slide image-generation mode, verify all generated PNGs are `3840x2160`, the PPT slide count matches the generated image count, and the exported PPT contact sheet has no blank or wrong-aspect slides.
    - Check icons are complete, text is not duplicated, source labels are not ghosting, and overlays do not overlap.
    - Verify preview PNG dimensions.
    - For module cutout mode, verify layer counts: one `WHITEFILL_BASE_Sxx` layer per slide and one `MODULE_Sxx_xx` picture per saved module box.
@@ -79,7 +90,7 @@ Use these scripts from the skill directory when helpful:
 ## Example Commands
 
 ```powershell
-$skill = "C:\Users\User\.agents\skills\image-ppt-to-editable-ppt"
+$skill = "C:\Users\User\.codex\skills\image-ppt-to-editable-ppt"
 
 # Recut a damaged icon from a 4K slide source.
 python "$skill\scripts\recut_from_source.py" `
@@ -120,6 +131,7 @@ python "$skill\scripts\module_cutouts.py" build `
 - Do not hand-draw replacement icons when a source icon exists.
 - Do not answer a module-animation request by extracting only text, or by splitting each card into tiny icons/text fragments.
 - Do not use transparent background removal for full cards unless the user asks; opaque card crops preserve shadows, antialiasing, text, and borders better.
+- Do not reuse old module coordinates after whole-slide regeneration, slide deletion, slide reordering, or content/layout changes. Stale boxes create missing modules, wrong crops, and visible white gaps; rerun the red-box review on the current deck.
 - Do not crop exactly to visible bounds; add generous margins, then tighten after background removal.
 - Transparent pixels may still carry RGB remnants; verify with the PPT export, not just isolated image viewers.
 - For white PPT panels, opaque white erase patches can be better than transparent erase patches because PowerPoint can expose antialiasing remnants.
